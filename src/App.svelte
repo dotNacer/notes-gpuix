@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { on_window_key, blur } from 'gpuix-svelte';
+	import { on_window_key } from 'gpuix-svelte';
 	import { state, refresh, next, prev, edit, flush, addNote, removeCurrent } from '../lib/state.svelte.ts';
 
 	function onkey(e: { key: string; modifiers?: { cmd?: boolean }; editing?: boolean }) {
@@ -15,7 +15,7 @@
 	refresh();
 </script>
 
-<div class="app" onmousedown={blur}>
+<div class="app">
 	<textarea
 		class="editor"
 		testId="editor"
