@@ -53,7 +53,7 @@
 		background-color: transparent;
 		color: #e8e8e8;
 		font-size: 16px;
-		line-height: 1.6;
+		line-height: 26px;
 	}
 	.dots-wrap {
 		position: absolute;
