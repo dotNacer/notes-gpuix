@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { on_window_key } from 'gpuix-svelte';
+	import { on_window_key, type GpuixEvent } from 'gpuix-svelte';
 	import { state, refresh, next, prev, edit, flush, addNote, removeCurrent } from '../lib/state.svelte.ts';
+	import { SwipeNavState } from '../lib/swipeNav.ts';
 
 	// Cmd+Flèche est un raccourci natif macOS de NSTextView (aller au début/fin
 	// de ligne) : le champ de texte focus l'intercepte avant que on_window_key
@@ -17,10 +18,20 @@
 
 	$effect(() => on_window_key('keydown', onkey));
 
+	// Swipe à deux doigts (trackpad) pour naviguer entre notes, comme Antinote.
+	// La logique de seuil/cooldown est un module pur testé isolément (lib/swipeNav.ts) ;
+	// ici on ne fait que router l'event GPUI 'scroll' de la zone .app vers next()/prev().
+	const swipe = new SwipeNavState();
+	function onscroll(e: GpuixEvent) {
+		const action = swipe.handleScroll(e.deltaX ?? 0, e.deltaY ?? 0, Date.now());
+		if (action === 'next') next();
+		else if (action === 'prev') prev();
+	}
+
 	refresh();
 </script>
 
-<div class="app">
+<div class="app" {onscroll}>
 	<textarea
 		class="editor"
 		testId="editor"

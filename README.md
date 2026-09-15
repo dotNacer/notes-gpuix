@@ -44,6 +44,13 @@ npm test                # tests headless — macOS/Windows uniquement, pas Linux
 - **Nouvelle note** : `Cmd+N`.
 - **Note suivante / précédente** : `Cmd+Flèche droite` / `Cmd+Flèche gauche`. (Les flèches
   seules déplacent le curseur dans le texte — normal, on édite une zone de texte.)
+- **Swipe à deux doigts (trackpad)** : comme Antinote, un swipe vers la **gauche** va à la
+  note **suivante**, vers la **droite** revient à la **précédente**. Coexiste avec `Cmd+Flèche`
+  sans le remplacer. Un seuil de mouvement cumulé (évite les faux déclenchements sur un tout
+  petit geste) et un cooldown après chaque changement de note (évite de défiler plusieurs
+  notes sur un seul swipe continu) rendent le geste stable — logique pure et testée dans
+  `lib/swipeNav.ts` (`npm run test:unit`). Le scroll vertical ne déclenche rien : c'est le
+  scroll normal du texte si une note dépasse la hauteur de la fenêtre.
 - **Supprimer la note courante** : `Cmd+Retour arrière` (désactivé s'il ne reste qu'une note).
 - Chaque note est sauvegardée automatiquement 300ms après la dernière frappe (debounce), et
   immédiatement en changeant de note.
