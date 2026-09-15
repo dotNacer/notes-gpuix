@@ -12,6 +12,21 @@
  * vers la GAUCHE (deltaX negatif, le contenu suit les doigts vers la gauche comme si
  * on tirait la note suivante depuis la droite) va a la note SUIVANTE; vers la DROITE
  * (deltaX positif) revient a la note PRECEDENTE.
+ *
+ * Un simple cooldown temporel ne suffit pas: un swipe tres energique/inertiel peut
+ * continuer d'envoyer des deltaX significatifs bien au-dela de cooldownMs, sans
+ * jamais laisser passer de vraie pause entre deux evenements. Pour garantir qu'un
+ * seul changement de note est declenche par geste physique continu, on ajoute un
+ * verrou (`locked`) qui n'est leve QUE quand un vrai silence (>= gestureGapMs) entre
+ * deux evenements horizontaux est observe -- signe que les doigts ont ete leves /
+ * l'inertie s'est arretee.
+ *
+ * `cooldownMs` et `gestureGapMs` NE SE CUMULENT PAS: le verrou est leve par celui des
+ * deux qui arrive en premier. `cooldownMs` reste court (absorbe juste le bruit residuel
+ * immediatement apres un declenchement); `gestureGapMs` est le VRAI mecanisme de
+ * distinction entre "meme geste" et "nouveau geste". Ainsi deux swipes nets et rapides
+ * mais separes par une vraie pause (>= gestureGapMs) declenchent chacun un changement,
+ * sans attente artificielle superflue.
  */
 
 export interface SwipeNavOptions {
@@ -19,11 +34,19 @@ export interface SwipeNavOptions {
   threshold: number;
   /** Duree (ms) pendant laquelle les deltas suivants sont ignores apres un changement de note. */
   cooldownMs: number;
+  /**
+   * Ecart (ms) sans evenement horizontal significatif signifiant la fin du geste
+   * physique. En dessous, deux evenements sont consideres comme faisant partie du
+   * meme geste continu -- le verrou anti-multi-skip reste actif meme au-dela de
+   * cooldownMs tant qu'aucune vraie pause n'a ete observee.
+   */
+  gestureGapMs: number;
 }
 
 export const DEFAULT_SWIPE_NAV_OPTIONS: SwipeNavOptions = {
   threshold: 60,
-  cooldownMs: 300
+  cooldownMs: 100,
+  gestureGapMs: 120
 };
 
 export type SwipeAction = 'next' | 'prev' | null;
@@ -31,6 +54,8 @@ export type SwipeAction = 'next' | 'prev' | null;
 export class SwipeNavState {
   private accumulatedX = 0;
   private cooldownUntil = 0;
+  private locked = false;
+  private lastHorizontalEventMs: number | null = null;
   private readonly options: SwipeNavOptions;
 
   constructor(options: Partial<SwipeNavOptions> = {}) {
@@ -46,20 +71,37 @@ export class SwipeNavState {
     // on laisse le textarea gerer et on ne pollue pas l'accumulation horizontale.
     if (Math.abs(deltaY) >= Math.abs(deltaX)) return null;
 
-    // Cooldown apres un changement de note: on ignore le reste du geste continu,
-    // mais on ne remet pas l'accumulateur a zero avant la fin du cooldown pour
-    // eviter qu'un petit reste de geste ne re-declenche immediatement au reveil.
-    if (nowMs < this.cooldownUntil) return null;
+    // Une vraie pause entre deux deltaX horizontaux signale la fin du geste
+    // physique: on leve le verrou et on repart d'un accumulateur propre, meme si
+    // le cooldown temporel n'est pas encore ecoule.
+    if (
+      this.lastHorizontalEventMs !== null &&
+      nowMs - this.lastHorizontalEventMs >= this.options.gestureGapMs
+    ) {
+      this.locked = false;
+      this.accumulatedX = 0;
+    }
+    this.lastHorizontalEventMs = nowMs;
+
+    // Verrou du geste en cours (deja declenche, pas de vraie pause depuis): on ignore
+    // ce delta. `cooldownMs` (par defaut < gestureGapMs) ne sert plus qu'a absorber un
+    // bruit residuel immediatement apres un declenchement -- comme gestureGapMs est
+    // toujours >= cooldownMs par defaut, la pause qui leve `locked` ci-dessus a
+    // deja, de fait, laisse le cooldown s'ecouler: les deux gardes ne se cumulent
+    // plus en pratique, `locked` reste le SEUL verrou reellement significatif.
+    if (this.locked || nowMs < this.cooldownUntil) return null;
 
     this.accumulatedX += deltaX;
 
     if (this.accumulatedX <= -this.options.threshold) {
       this.accumulatedX = 0;
+      this.locked = true;
       this.cooldownUntil = nowMs + this.options.cooldownMs;
       return 'next';
     }
     if (this.accumulatedX >= this.options.threshold) {
       this.accumulatedX = 0;
+      this.locked = true;
       this.cooldownUntil = nowMs + this.options.cooldownMs;
       return 'prev';
     }

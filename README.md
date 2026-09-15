@@ -47,10 +47,18 @@ npm test                # tests headless — macOS/Windows uniquement, pas Linux
 - **Swipe à deux doigts (trackpad)** : comme Antinote, un swipe vers la **gauche** va à la
   note **suivante**, vers la **droite** revient à la **précédente**. Coexiste avec `Cmd+Flèche`
   sans le remplacer. Un seuil de mouvement cumulé (évite les faux déclenchements sur un tout
-  petit geste) et un cooldown après chaque changement de note (évite de défiler plusieurs
-  notes sur un seul swipe continu) rendent le geste stable — logique pure et testée dans
-  `lib/swipeNav.ts` (`npm run test:unit`). Le scroll vertical ne déclenche rien : c'est le
+  petit geste), un cooldown après chaque changement de note, et un verrou de geste qui ne se
+  lève qu'après une vraie pause dans le flux de scroll (évite qu'un swipe très rapide/inertiel
+  ne fasse défiler plusieurs notes d'affilée) rendent le geste stable — logique pure et testée
+  dans `lib/swipeNav.ts` (`npm run test:unit`). Le scroll vertical ne déclenche rien : c'est le
   scroll normal du texte si une note dépasse la hauteur de la fenêtre.
+- **Animation au changement de note** : `]`/`[`, `Cmd+Flèche`, le swipe trackpad et `Cmd+N`
+  déclenchent tous une transition "page qui tourne" (~220ms) — la note quittée glisse et
+  s'estompe vers la gauche (avant) ou la droite (arrière), la nouvelle arrive du côté opposé.
+  Purement cosmétique : le texte reste éditable immédiatement, sans attendre la fin de
+  l'animation. Pas d'animation avec une seule note. Calcul des positions/opacités testé dans
+  `lib/pageTurn.ts` (`npm run test:unit`) ; le rendu visuel réel n'a pas pu être vérifié à
+  l'œil dans cet environnement (pas de macOS/GPUI natif disponible ici).
 - **Supprimer la note courante** : `Cmd+Retour arrière` (désactivé s'il ne reste qu'une note).
 - Chaque note est sauvegardée automatiquement 300ms après la dernière frappe (debounce), et
   immédiatement en changeant de note.
@@ -111,6 +119,8 @@ app.ts              entrée: ouvre la fenêtre, hot-reload sur save
 src/App.svelte       le composant unique: textarea plein écran + indicateur de position
 lib/notes.ts          lecture/écriture des fichiers markdown (utilisé par l'app ET le MCP)
 lib/state.svelte.ts   état runes qui survit au hot-reload: note courante, brouillon, debounce
+lib/swipeNav.ts       state machine pure du swipe deux doigts (seuil/cooldown/anti-multi-skip)
+lib/pageTurn.ts        calcul pur des valeurs motion (left/opacity) de l'animation page-tournante
 mcp/server.ts         serveur MCP (stdio) exposant les 6 tools ci-dessus
 test.ts               test headless (mount_headless, presse cmd-n / cmd-flèches, vérifie le texte)
 vendor/gpuix-svelte/   clone vendoré du renderer (voir ci-dessus)
