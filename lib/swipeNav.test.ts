@@ -115,4 +115,21 @@ describe('SwipeNavState', () => {
     // 250ms apres le dernier evenement (>= gestureGapMs): vraie pause, verrou leve.
     expect(state.handleScroll(-70, 0, 400)).toBe('next');
   });
+
+  it('deux gestes nets et rapproches (~150-200ms d ecart, valeurs par defaut) declenchent chacun un changement, sans attente supplementaire due au cooldown', () => {
+    // Options par defaut: threshold 60, cooldownMs 100 (court, absorbe juste le bruit
+    // immediat), gestureGapMs 120 (le vrai mecanisme de distinction de geste). Deux
+    // swipes nets separes d'une vraie pause de ~150-200ms ne doivent PAS s'additionner
+    // en attente: des que la pause (>= gestureGapMs) est passee, le second declenche
+    // aussitot, sans devoir en plus attendre un cooldownMs deja largement ecoule.
+    const state = new SwipeNavState();
+    // Premier geste net: un seul evenement qui franchit directement le seuil.
+    expect(state.handleScroll(-70, 0, 0)).toBe('next');
+    // Deuxieme geste, volontaire, demarre 180ms plus tard (> gestureGapMs 120,
+    // largement > cooldownMs 100): doit declencher IMMEDIATEMENT, des le premier delta.
+    expect(state.handleScroll(-70, 0, 180)).toBe('next');
+    // Un troisieme geste separe de seulement 150ms de l'evenement precedent doit
+    // egalement passer (150 >= gestureGapMs 120, meme si tres proche de cooldownMs).
+    expect(state.handleScroll(70, 0, 330)).toBe('prev');
+  });
 });

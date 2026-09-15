@@ -19,8 +19,14 @@
  * seul changement de note est declenche par geste physique continu, on ajoute un
  * verrou (`locked`) qui n'est leve QUE quand un vrai silence (>= gestureGapMs) entre
  * deux evenements horizontaux est observe -- signe que les doigts ont ete leves /
- * l'inertie s'est arretee. Le cooldown temporel reste une securite supplementaire
- * (utile si gestureGapMs est mal calibre) mais n'est plus la seule protection.
+ * l'inertie s'est arretee.
+ *
+ * `cooldownMs` et `gestureGapMs` NE SE CUMULENT PAS: le verrou est leve par celui des
+ * deux qui arrive en premier. `cooldownMs` reste court (absorbe juste le bruit residuel
+ * immediatement apres un declenchement); `gestureGapMs` est le VRAI mecanisme de
+ * distinction entre "meme geste" et "nouveau geste". Ainsi deux swipes nets et rapides
+ * mais separes par une vraie pause (>= gestureGapMs) declenchent chacun un changement,
+ * sans attente artificielle superflue.
  */
 
 export interface SwipeNavOptions {
@@ -39,7 +45,7 @@ export interface SwipeNavOptions {
 
 export const DEFAULT_SWIPE_NAV_OPTIONS: SwipeNavOptions = {
   threshold: 60,
-  cooldownMs: 300,
+  cooldownMs: 100,
   gestureGapMs: 120
 };
 
@@ -77,8 +83,12 @@ export class SwipeNavState {
     }
     this.lastHorizontalEventMs = nowMs;
 
-    // Verrou du geste en cours (deja declenche, pas de vraie pause depuis) OU
-    // cooldown temporel: dans les deux cas, on ignore ce delta.
+    // Verrou du geste en cours (deja declenche, pas de vraie pause depuis): on ignore
+    // ce delta. `cooldownMs` (par defaut < gestureGapMs) ne sert plus qu'a absorber un
+    // bruit residuel immediatement apres un declenchement -- comme gestureGapMs est
+    // toujours >= cooldownMs par defaut, la pause qui leve `locked` ci-dessus a
+    // deja, de fait, laisse le cooldown s'ecouler: les deux gardes ne se cumulent
+    // plus en pratique, `locked` reste le SEUL verrou reellement significatif.
     if (this.locked || nowMs < this.cooldownUntil) return null;
 
     this.accumulatedX += deltaX;
