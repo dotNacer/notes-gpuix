@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { on_window_key, blur, focus_element, type ShadowNode } from 'gpuix-svelte';
+	import { on_window_key, blur } from 'gpuix-svelte';
 	import { state, refresh, next, prev, edit, flush, addNote, removeCurrent } from '../lib/state.svelte.ts';
-
-	let editor_node: ShadowNode | null = null;
 
 	function onkey(e: { key: string; modifiers?: { cmd?: boolean }; editing?: boolean }) {
 		if (!e.modifiers?.cmd) return;
@@ -26,8 +24,6 @@
 		value={state.draft}
 		onchange={(e) => edit(e.value)}
 		onblur={flush}
-		onmousedown={() => focus_element(editor_node)}
-		{@attach (node) => (editor_node = node)}
 	></textarea>
 
 	{#if state.notes.length > 1}
