@@ -36,18 +36,50 @@ npm install
 npm start              # ouvre la fenêtre — édite src/App.svelte et sauvegarde pour hot-reload
 npm run typecheck       # tsc --noEmit
 npm test                # tests headless — macOS/Windows uniquement, pas Linux
+npm run test:unit       # tests unitaires purs (checklist/mots-clés/math/agrégats/paste), vitest
 ```
 
 ## Utiliser l'app
 
 - **Écrire** : la fenêtre s'ouvre sur une page blanche, tape directement.
 - **Nouvelle note** : `Cmd+N`.
-- **Note suivante / précédente** : `Cmd+Flèche droite` / `Cmd+Flèche gauche`. (Les flèches
-  seules déplacent le curseur dans le texte — normal, on édite une zone de texte.)
+- **Note suivante / précédente** : `]` / `[`. (Cmd+Flèche est intercepté par macOS avant
+  d'atteindre l'app — les flèches seules restent réservées au déplacement du curseur dans
+  le texte, normal, on édite une zone de texte.)
 - **Supprimer la note courante** : `Cmd+Retour arrière` (désactivé s'il ne reste qu'une note).
+- **Coller en texte brut** : `Cmd+Shift+V` colle le presse-papier système en texte brut
+  (strip l'indentation et les puces/numérotation collées depuis un autre éditeur) — sauf en
+  mode `code`, où le texte est gardé tel quel. `Cmd+V` seul n'est volontairement pas
+  intercepté : NSTextView le traite déjà comme un collage natif côté macOS, potentiellement
+  avec mise en forme selon la source ; utilise `Cmd+Shift+V` pour forcer le texte brut.
 - Chaque note est sauvegardée automatiquement 300ms après la dernière frappe (debounce), et
   immédiatement en changeant de note.
 - Les petits points en bas indiquent la position dans la liste des notes.
+
+### Checklists automatiques
+
+Toute ligne qui commence par `- `, `* `, `+ ` ou une numérotation (`1.`, `2)`, ...) devient
+visuellement une checklist cochable — pas besoin d'activer un mode. Cliquer sur la case à
+cocher bascule `- item` → `- [ ] item` → `- [x] item` → `- [ ] item`, directement dans le
+fichier markdown source (`- [ ]` / `- [x]`, lisible dans n'importe quel éditeur).
+
+### Mots-clés de mode
+
+Si la toute première ligne d'une note est *exactement* un de ces mots-clés (comme sur
+[antinote.io/user-manual/keywords](https://antinote.io/user-manual/keywords)), la note
+bascule dans un mode dédié. Le mot-clé n'est jamais copié quand on copie/exporte le
+contenu de la note.
+
+| Mot-clé | Effet |
+| --- | --- |
+| `list` (ou `list: Titre`) | Chaque ligne suivante devient un item de checklist. |
+| `math` | Chaque ligne contenant une expression arithmétique simple (`+ - * /`, parenthèses) affiche son résultat à droite, mis à jour en live. Pas de conversions devises/unités ni de variables réactives dans cette version. |
+| `sum` | Affiche la somme des nombres trouvés dans les lignes de la note. |
+| `avg` | Affiche la moyenne des nombres trouvés dans les lignes de la note. |
+| `count` | Affiche le nombre de lignes / mots / caractères de la note. |
+| `code` | Désactive le strip de formatage au collage pour cette note et bascule la police en monospace. |
+
+Dans les modes `sum`/`avg`/`count`, les lignes préfixées par `//` sont ignorées.
 
 ## Où sont mes notes
 
@@ -101,11 +133,19 @@ l'IA et l'app liront des notes différentes.
 
 ```
 app.ts              entrée: ouvre la fenêtre, hot-reload sur save
-src/App.svelte       le composant unique: textarea plein écran + indicateur de position
+src/App.svelte       le composant unique: textarea plein écran, calque de checklist/mode
+                     par-dessus, indicateur de position
 lib/notes.ts          lecture/écriture des fichiers markdown (utilisé par l'app ET le MCP)
 lib/state.svelte.ts   état runes qui survit au hot-reload: note courante, brouillon, debounce
+lib/checklist.ts       parsing/formatage/toggle des lignes de checklist (`- [ ]`/`- [x]`)
+lib/keywords.ts        détection du mot-clé de mode en 1ère ligne (list/math/sum/avg/count/code)
+lib/mathEval.ts         évaluateur arithmétique simple pour le mode `math`
+lib/aggregate.ts        sum/avg/count sur les lignes d'une note
+lib/pasteStrip.ts       strip du formatage/indentation/puces d'un texte collé
+lib/clipboardNode.ts    lecture du presse-papier système (pbpaste/xclip/wl-paste/powershell)
 mcp/server.ts         serveur MCP (stdio) exposant les 6 tools ci-dessus
 test.ts               test headless (mount_headless, presse cmd-n / cmd-flèches, vérifie le texte)
+test/                 tests unitaires purs (vitest) des modules lib/*.ts ci-dessus
 vendor/gpuix-svelte/   clone vendoré du renderer (voir ci-dessus)
 ```
 
