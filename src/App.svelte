@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { on_window_key } from 'gpuix-svelte';
 	import { state, refresh, next, prev, edit, flush, addNote, removeCurrent } from '../lib/state.svelte.ts';
-	import { parseChecklistLine, toggleChecklistLineAt } from '../lib/checklist.ts';
-	import { detectKeyword, bodyLines } from '../lib/keywords.ts';
+	import { parseChecklistLine, parseChecklistLineOrPlain, toggleChecklistLineAt, toggleChecklistLineAtOrPlain } from '../lib/checklist.ts';
+	import { detectKeyword, bodyLines, stripKeywordLine } from '../lib/keywords.ts';
 	import { evaluateMathLine } from '../lib/mathEval.ts';
 	import { computeAvg, computeCount, computeSum } from '../lib/aggregate.ts';
 	import { stripPastedText } from '../lib/pasteStrip.ts';
-	import { readClipboardText } from '../lib/clipboardNode.ts';
+	import { readClipboardText, writeClipboardText } from '../lib/clipboardNode.ts';
 
 	const LINE_HEIGHT = 26;
 	const PAD_TOP = 48;
@@ -29,10 +29,22 @@
 	// faute d'API de position de curseur exposée par le renderer pour un
 	// <textarea> natif (voir gpuix-svelte/src/window.ts), on ne peut pas
 	// insérer exactement "au point d'insertion" comme un vrai paste DOM.
+	//
+	// Copie sans mot-clé : gpuix-svelte n'expose pas non plus la sélection du
+	// <textarea> natif (pas de selectionStart/End, voir vendor/gpuix-svelte/
+	// src/types.ts), donc on ne peut pas intercepter "copier la sélection" à
+	// proprement parler. On intercepte Cmd+C pour copier tout le contenu de
+	// la note (mot-clé de 1ère ligne exclu si présent) vers le presse-papier
+	// système via writeClipboardText, plutôt que de laisser NSTextView copier
+	// la sélection brute (qui inclurait le mot-clé s'il est sélectionné).
 	function onkey(e: { key: string; modifiers?: { cmd?: boolean; shift?: boolean }; editing?: boolean }) {
 		if (!e.modifiers?.cmd) return;
 		if (e.modifiers.shift && e.key.toLowerCase() === 'v') {
 			pasteStripped();
+			return;
+		}
+		if (!e.modifiers.shift && e.key.toLowerCase() === 'c') {
+			copyWithoutKeyword();
 			return;
 		}
 		if (e.key === ']' || e.key === 'ArrowRight' || e.key === 'right') next();
@@ -49,6 +61,10 @@
 		edit(state.draft + (needsNewline ? '\n' : '') + stripped);
 	}
 
+	function copyWithoutKeyword() {
+		writeClipboardText(stripKeywordLine(state.draft));
+	}
+
 	$effect(() => on_window_key('keydown', onkey));
 
 	refresh();
@@ -57,15 +73,24 @@
 	let keywordMode = $derived(detectKeyword(state.draft));
 	let lines = $derived(state.draft.split('\n'));
 	let isCodeMode = $derived(keywordMode?.keyword === 'code');
+	let isListMode = $derived(keywordMode?.keyword === 'list');
 
 	// Checklist auto : toute ligne "- "/"* "/"1." devient un item cochable, sauf en
 	// mode code (où "- " peut faire partie de code source, pas d'une liste).
+	// En mode `list` explicite, TOUTE ligne du corps (même sans marqueur) devient un
+	// item cochable — comportement "list" décrit dans le DoD, distinct du défaut qui
+	// n'agit que sur les lignes déjà marquées `-`/`*`/`1.`.
 	let checklistItems = $derived(
 		isCodeMode
 			? []
-			: lines
-					.map((line, index) => ({ index, item: parseChecklistLine(line) }))
-					.filter((entry): entry is { index: number; item: NonNullable<ReturnType<typeof parseChecklistLine>> } => entry.item !== null)
+			: isListMode
+				? lines
+						.slice(1)
+						.map((line, i) => ({ index: i + 1, item: parseChecklistLineOrPlain(line) }))
+						.filter((entry): entry is { index: number; item: NonNullable<ReturnType<typeof parseChecklistLineOrPlain>> } => entry.item !== null)
+				: lines
+						.map((line, index) => ({ index, item: parseChecklistLine(line) }))
+						.filter((entry): entry is { index: number; item: NonNullable<ReturnType<typeof parseChecklistLine>> } => entry.item !== null)
 	);
 
 	// Mode math : évalue chaque ligne du corps (après le mot-clé) et affiche le résultat à droite.
@@ -89,7 +114,7 @@
 	});
 
 	function toggleLine(index: number) {
-		edit(toggleChecklistLineAt(state.draft, index));
+		edit(isListMode ? toggleChecklistLineAtOrPlain(state.draft, index) : toggleChecklistLineAt(state.draft, index));
 	}
 </script>
 
@@ -130,6 +155,10 @@
 
 	{#if summaryBanner}
 		<div class="summary-banner" testId="summary-banner">{summaryBanner}</div>
+	{/if}
+
+	{#if isListMode && keywordMode?.title}
+		<div class="list-title" testId="list-title">{keywordMode.title}</div>
 	{/if}
 
 	{#if state.notes.length > 1}
@@ -206,6 +235,14 @@
 		right: 20px;
 		color: #9a9a9a;
 		font-size: 13px;
+	}
+	.list-title {
+		position: absolute;
+		top: 12px;
+		left: 56px;
+		color: #9a9a9a;
+		font-size: 13px;
+		font-weight: 600;
 	}
 	.dots-wrap {
 		position: absolute;

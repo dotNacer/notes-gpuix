@@ -3,8 +3,10 @@ import {
   formatChecklistLine,
   isChecklistLine,
   parseChecklistLine,
+  parseChecklistLineOrPlain,
   toggleChecklistLine,
-  toggleChecklistLineAt
+  toggleChecklistLineAt,
+  toggleChecklistLineAtOrPlain
 } from '../lib/checklist.ts';
 
 describe('parseChecklistLine', () => {
@@ -110,5 +112,42 @@ describe('toggleChecklistLineAt', () => {
     const content = '- [ ] un';
     expect(toggleChecklistLineAt(content, 5)).toBe(content);
     expect(toggleChecklistLineAt(content, -1)).toBe(content);
+  });
+});
+
+describe('parseChecklistLineOrPlain', () => {
+  it('reconnait toujours les lignes marquees comme parseChecklistLine', () => {
+    expect(parseChecklistLineOrPlain('- item')).toEqual(parseChecklistLine('- item'));
+  });
+
+  it('traite une ligne de corps sans marqueur comme un item implicite', () => {
+    expect(parseChecklistLineOrPlain('milk')).toEqual({
+      kind: 'bullet',
+      marker: '-',
+      indent: '',
+      checked: undefined,
+      text: 'milk'
+    });
+  });
+
+  it('ignore une ligne vide/blanche', () => {
+    expect(parseChecklistLineOrPlain('')).toBeNull();
+    expect(parseChecklistLineOrPlain('   ')).toBeNull();
+  });
+});
+
+describe('toggleChecklistLineAtOrPlain', () => {
+  it('coche une ligne de corps sans marqueur', () => {
+    expect(toggleChecklistLineAtOrPlain('list: Courses\nmilk\neggs', 1)).toBe('list: Courses\n- [x] milk\neggs');
+  });
+
+  it('bascule une ligne deja cochee', () => {
+    expect(toggleChecklistLineAtOrPlain('list\n- [x] milk', 1)).toBe('list\n- [ ] milk');
+  });
+
+  it('ignore une ligne vide et un index hors bornes', () => {
+    const content = 'list\n\nmilk';
+    expect(toggleChecklistLineAtOrPlain(content, 1)).toBe(content);
+    expect(toggleChecklistLineAtOrPlain(content, 99)).toBe(content);
   });
 });

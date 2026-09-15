@@ -41,6 +41,19 @@ export function isChecklistLine(line: string): boolean {
   return parseChecklistLine(line) !== null;
 }
 
+/**
+ * Comme `parseChecklistLine`, mais pour le mode `list` explicite : une ligne
+ * de corps sans marqueur ("milk") est traitee comme un item de checklist
+ * implicite (marqueur `-` synthetique), pas seulement les lignes deja
+ * marquees `-`/`*`/`1.`. Une ligne vide/blanche reste ignoree (pas un item).
+ */
+export function parseChecklistLineOrPlain(line: string): ChecklistLine | null {
+  const parsed = parseChecklistLine(line);
+  if (parsed) return parsed;
+  if (line.trim().length === 0) return null;
+  return { kind: 'bullet', marker: '-', indent: '', checked: undefined, text: line };
+}
+
 /** Reconstruit la ligne Markdown a partir d'un ChecklistLine. */
 export function formatChecklistLine(item: ChecklistLine): string {
   const box = item.checked === undefined ? '' : `[${item.checked ? 'x' : ' '}] `;
@@ -63,5 +76,20 @@ export function toggleChecklistLineAt(content: string, lineIndex: number): strin
   const lines = content.split('\n');
   if (lineIndex < 0 || lineIndex >= lines.length) return content;
   lines[lineIndex] = toggleChecklistLine(lines[lineIndex]!);
+  return lines.join('\n');
+}
+
+/**
+ * Comme `toggleChecklistLineAt`, mais pour le mode `list` explicite : bascule
+ * aussi une ligne de corps sans marqueur ("milk" -> "- [x] milk"), en plus des
+ * lignes deja marquees.
+ */
+export function toggleChecklistLineAtOrPlain(content: string, lineIndex: number): string {
+  const lines = content.split('\n');
+  if (lineIndex < 0 || lineIndex >= lines.length) return content;
+  const item = parseChecklistLineOrPlain(lines[lineIndex]!);
+  if (!item) return content;
+  const nextChecked = item.checked === undefined ? true : !item.checked;
+  lines[lineIndex] = formatChecklistLine({ ...item, checked: nextChecked });
   return lines.join('\n');
 }

@@ -52,6 +52,10 @@ npm run test:unit       # tests unitaires purs (checklist/mots-clés/math/agrég
   mode `code`, où le texte est gardé tel quel. `Cmd+V` seul n'est volontairement pas
   intercepté : NSTextView le traite déjà comme un collage natif côté macOS, potentiellement
   avec mise en forme selon la source ; utilise `Cmd+Shift+V` pour forcer le texte brut.
+- **Copier sans le mot-clé** : `Cmd+C` copie tout le contenu de la note (mot-clé de 1ère
+  ligne exclu s'il y en a un) vers le presse-papier système. gpuix-svelte n'expose pas la
+  sélection du `<textarea>` natif, donc on ne peut pas ne copier "que la sélection" — c'est
+  tout le contenu (sans mot-clé) qui est copié à chaque `Cmd+C`.
 - Chaque note est sauvegardée automatiquement 300ms après la dernière frappe (debounce), et
   immédiatement en changeant de note.
 - Les petits points en bas indiquent la position dans la liste des notes.
@@ -72,7 +76,7 @@ contenu de la note.
 
 | Mot-clé | Effet |
 | --- | --- |
-| `list` (ou `list: Titre`) | Chaque ligne suivante devient un item de checklist. |
+| `list` (ou `list: Titre`) | Chaque ligne suivante du corps devient un item de checklist cochable, même sans marqueur `-`/`1.` (contrairement au comportement par défaut, plus permissif que le point "checklists automatiques" ci-dessus). Le titre (`list: Titre`) s'affiche en haut de la note. |
 | `math` | Chaque ligne contenant une expression arithmétique simple (`+ - * /`, parenthèses) affiche son résultat à droite, mis à jour en live. Pas de conversions devises/unités ni de variables réactives dans cette version. |
 | `sum` | Affiche la somme des nombres trouvés dans les lignes de la note. |
 | `avg` | Affiche la moyenne des nombres trouvés dans les lignes de la note. |
