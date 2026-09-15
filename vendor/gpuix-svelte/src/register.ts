@@ -20,7 +20,7 @@ registerHooks({
 		return nextResolve(specifier, { ...context, parentURL: import.meta.url });
 	},
 
-	load(url, context, nextLoad) {
+	async load(url, context, nextLoad) {
 		if (/\.svelte\.[jt]s(\?|$)/.test(url)) {
 			const file = new URL(url);
 			file.search = '';
@@ -31,14 +31,14 @@ registerHooks({
 				// `compileModule` does not strip types, so the next loader (tsx, which the bin
 				// registers ahead of this hook) does; a bare `--import gpuix-svelte/register`
 				// gets Node's raw TypeScript back instead.
-				const loaded = nextLoad(url, context);
+				const loaded = await nextLoad(url, context);
 				source = decode(loaded.source ?? '');
 				if (loaded.format === 'module-typescript') source = stripTypeScriptTypes(source);
 			}
 			return { format: 'module', shortCircuit: true, source: compile_module(path, source) };
 		}
 
-		if (!/\.svelte(\?|$)/.test(url)) return nextLoad(url, context);
+		if (!/\.svelte(\?|$)/.test(url)) return await nextLoad(url, context);
 
 		// `render_hot` busts Node's module cache with a `?v=N` tail; it lands in
 		// the URL's search rather than the path.
