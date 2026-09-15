@@ -1,0 +1,23 @@
+{
+  "name": "notes-gpuix",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Antinote-like note app: blank page, swipe/arrow between notes. Native macOS window via gpuix-svelte. Notes are plain markdown files on disk, readable by the paired MCP server.",
+  "scripts": {
+    "start": "gpuix-svelte app.ts",
+    "test": "gpuix-svelte test.ts",
+    "typecheck": "tsc --noEmit",
+    "mcp": "tsx mcp/server.ts"
+  },
+  "dependencies": {
+    "gpuix-svelte": "file:vendor/gpuix-svelte",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^5.9.3",
+    "tsx": "^4.19.0"
+  }
+}
