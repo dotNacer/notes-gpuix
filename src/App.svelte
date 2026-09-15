@@ -2,10 +2,15 @@
 	import { on_window_key } from 'gpuix-svelte';
 	import { state, refresh, next, prev, edit, flush, addNote, removeCurrent } from '../lib/state.svelte.ts';
 
+	// Cmd+Flèche est un raccourci natif macOS de NSTextView (aller au début/fin
+	// de ligne) : le champ de texte focus l'intercepte avant que on_window_key
+	// ne le voie, donc ça ne marchait jamais depuis le textarea. ] / [ n'ont
+	// pas de binding système par défaut, donc ils passent bien. On garde les
+	// flèches en fallback si jamais le focus n'est pas dans le champ.
 	function onkey(e: { key: string; modifiers?: { cmd?: boolean }; editing?: boolean }) {
 		if (!e.modifiers?.cmd) return;
-		if (e.key === 'ArrowRight' || e.key === 'right') next();
-		else if (e.key === 'ArrowLeft' || e.key === 'left') prev();
+		if (e.key === ']' || e.key === 'ArrowRight' || e.key === 'right') next();
+		else if (e.key === '[' || e.key === 'ArrowLeft' || e.key === 'left') prev();
 		else if (e.key === 'n') addNote();
 		else if (e.key === 'Backspace' && state.notes.length > 1) removeCurrent();
 	}
