@@ -1,6 +1,13 @@
 <script lang="ts">
-	import { on_window_key, blur } from 'gpuix-svelte';
+	import { on_window_key, blur, focus_element } from 'gpuix-svelte';
 	import { state, refresh, next, prev, edit, flush, addNote, removeCurrent } from '../lib/state.svelte.ts';
+
+	// Référence native du textarea, capturée via {@attach}. On l'utilise pour
+	// reforcer le focus explicitement : autofocus ne joue qu'au montage initial
+	// et ne rétablit rien quand la fenêtre macOS redevient active après avoir
+	// perdu le focus (gpuix-svelte n'expose pas d'événement "window activate"
+	// sur lequel se raccrocher, donc on force le focus nous-mêmes au clic).
+	let editorNode: { nativeId?: number | null } | null = null;
 
 	function onkey(e: { key: string; modifiers?: { cmd?: boolean }; editing?: boolean }) {
 		if (!e.modifiers?.cmd) return;
@@ -12,10 +19,22 @@
 
 	$effect(() => on_window_key('keydown', onkey));
 
+	// Filet de sécurité supplémentaire : si jamais un clic atterrit sur .app
+	// sans que le textarea ne récupère le focus tout seul (ex: après une
+	// réactivation de fenêtre), on le force explicitement au lieu de compter
+	// sur le comportement implicite du renderer.
+	function onAppMouseDown(e: { target?: { name?: string } }) {
+		if (e.target?.name === 'textarea') {
+			focus_element(editorNode);
+		} else {
+			blur();
+		}
+	}
+
 	refresh();
 </script>
 
-<div class="app" onmousedown={blur}>
+<div class="app" onmousedown={onAppMouseDown}>
 	<textarea
 		class="editor"
 		testId="editor"
@@ -24,6 +43,8 @@
 		value={state.draft}
 		onchange={(e) => edit(e.value)}
 		onblur={flush}
+		onmousedown={() => focus_element(editorNode)}
+		{@attach (node) => { editorNode = node; }}
 	></textarea>
 
 	{#if state.notes.length > 1}
