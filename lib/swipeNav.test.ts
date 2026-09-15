@@ -95,4 +95,24 @@ describe('SwipeNavState', () => {
     const state = new SwipeNavState();
     expect(state.handleScroll(-DEFAULT_SWIPE_NAV_OPTIONS.threshold, 0, 0)).toBe('next');
   });
+
+  it('un swipe tres rapide et prolonge (inertie) ne declenche jamais plus d une note, meme bien au-dela du cooldown', () => {
+    const state = new SwipeNavState({ threshold: 60, cooldownMs: 300, gestureGapMs: 120 });
+    // 40 evenements de deltaX -50 toutes les 16ms (~624ms de geste continu), sans
+    // jamais de vraie pause (>= gestureGapMs) entre deux evenements: un cooldown
+    // purement temporel de 300ms aurait laisse ce geste re-declencher plusieurs fois.
+    const events = Array.from({ length: 40 }, (_, i) => ({ dx: -50, dy: 0, t: i * 16 }));
+    const results = run(state, events);
+    expect(results.filter((r) => r !== null)).toEqual(['next']);
+  });
+
+  it('le verrou se leve seulement apres une vraie pause (gestureGapMs), pas juste apres cooldownMs', () => {
+    const state = new SwipeNavState({ threshold: 60, cooldownMs: 100, gestureGapMs: 200 });
+    expect(state.handleScroll(-70, 0, 0)).toBe('next');
+    // 150ms plus tard: cooldownMs (100) est ecoule mais gestureGapMs (200) ne
+    // l'est pas -> le geste est considere continu, toujours verrouille.
+    expect(state.handleScroll(-70, 0, 150)).toBeNull();
+    // 250ms apres le dernier evenement (>= gestureGapMs): vraie pause, verrou leve.
+    expect(state.handleScroll(-70, 0, 400)).toBe('next');
+  });
 });
