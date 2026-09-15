@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { on_window_key, get_native, type GpuixEvent } from 'gpuix-svelte';
-	import { state, refresh, next, prev, edit, flush, addNote, removeCurrent } from '../lib/state.svelte.ts';
+	import { state as appState, refresh, next, prev, edit, flush, addNote, removeCurrent } from '../lib/state.svelte.ts';
 	import { SwipeNavState } from '../lib/swipeNav.ts';
 	import {
 		outgoingMotion,
@@ -22,7 +22,7 @@
 		if (e.key === ']' || e.key === 'ArrowRight' || e.key === 'right') goNext();
 		else if (e.key === '[' || e.key === 'ArrowLeft' || e.key === 'left') goPrev();
 		else if (e.key === 'n') goAddNote();
-		else if (e.key === 'Backspace' && state.notes.length > 1) removeCurrent();
+		else if (e.key === 'Backspace' && appState.notes.length > 1) removeCurrent();
 	}
 
 	$effect(() => on_window_key('keydown', onkey));
@@ -44,7 +44,7 @@
 	// Deux calques pendant la transition :
 	// - `transition.outgoingText` : instantané en lecture seule de l'ancienne note,
 	//   affiché dans un <div> qui glisse hors écran puis est démonté. Purement visuel.
-	// - le vrai <textarea> (toujours lié à state.draft, donc déjà sur la NOUVELLE note) :
+	// - le vrai <textarea> (toujours lié à appState.draft, donc déjà sur la NOUVELLE note) :
 	//   reste l'unique source de vérité et reste éditable immédiatement, mais sa prop
 	//   `motion` est pilotée en deux temps pour lui faire rejouer une entrée depuis le
 	//   bord opposé plutôt que de rester visible à sa position normale pendant que la
@@ -98,30 +98,30 @@
 	}
 
 	function goNext(): void {
-		if (state.notes.length <= 1) {
+		if (appState.notes.length <= 1) {
 			next();
 			return;
 		}
-		const outgoingText = state.draft;
+		const outgoingText = appState.draft;
 		const width = containerWidth();
 		next();
 		beginPageTurn('next', outgoingText, width);
 	}
 
 	function goPrev(): void {
-		if (state.notes.length <= 1) {
+		if (appState.notes.length <= 1) {
 			prev();
 			return;
 		}
-		const outgoingText = state.draft;
+		const outgoingText = appState.draft;
 		const width = containerWidth();
 		prev();
 		beginPageTurn('prev', outgoingText, width);
 	}
 
 	function goAddNote(): void {
-		const hadExistingNote = state.notes.length >= 1;
-		const outgoingText = state.draft;
+		const hadExistingNote = appState.notes.length >= 1;
+		const outgoingText = appState.draft;
 		const width = containerWidth();
 		addNote();
 		if (hadExistingNote) beginPageTurn('next', outgoingText, width);
@@ -145,18 +145,18 @@
 			testId="editor"
 			autofocus
 			placeholder="Écris quelque chose..."
-			value={state.draft}
+			value={appState.draft}
 			onchange={(e) => edit(e.value)}
 			onblur={flush}
 			motion={editorMotion}
 		></textarea>
 	</div>
 
-	{#if state.notes.length > 1}
+	{#if appState.notes.length > 1}
 		<div class="dots-wrap">
 			<div class="dots">
-				{#each state.notes as _note, i (i)}
-					<div class="dot" class:active={i === state.index}></div>
+				{#each appState.notes as _note, i (i)}
+					<div class="dot" class:active={i === appState.index}></div>
 				{/each}
 			</div>
 		</div>
