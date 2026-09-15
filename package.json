@@ -8,7 +8,8 @@
     "start": "gpuix-svelte app.ts",
     "test": "gpuix-svelte test.ts",
     "typecheck": "tsc --noEmit",
-    "mcp": "tsx mcp/server.ts"
+    "mcp": "tsx mcp/server.ts",
+    "postinstall": "find node_modules -path '*/svelte/compiler' -type d -exec rm -rf {} + 2>/dev/null || true"
   },
   "dependencies": {
     "gpuix-svelte": "file:vendor/gpuix-svelte",
